@@ -352,9 +352,7 @@ contract Moloch {
     uint256 public votingPeriodLength; // default = 35 periods (7 days)
     uint256 public gracePeriodLength; // default = 35 periods (7 days)
     uint256 public abortWindow; // default = 5 periods (1 day)
-    uint256 public proposalDeposit; // default = 1 ETH (~$200 worth of ETH at contract deployment)
     uint256 public dilutionBound; // default = 3 - maximum multiplier a YES voter will be obligated to pay in case of mass ragequit
-    uint256 public processingReward; // default = 0.01 - amount of ETH to give to whoever processes a proposal
     uint256 public summoningTime; // needed to determine the current period
     
     address private summoner; // Moloch summoner address reference for Moloch admin controls; 
@@ -450,7 +448,7 @@ contract Moloch {
         uint256 _abortWindow,
         uint256 _dilutionBound
     ) public {
-        require(summoner != address(0), "Moloch::constructor - summoner cannot be 0");
+        require(_summoner != address(0), "Moloch::constructor - summoner cannot be 0");
         require(_contributionToken != address(0), "Moloch::constructor - _contributionToken cannot be 0");
         require(_periodDuration > 0, "Moloch::constructor - _periodDuration cannot be 0");
         require(_votingPeriodLength > 0, "Moloch::constructor - _votingPeriodLength cannot be 0");
