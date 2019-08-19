@@ -415,19 +415,19 @@ contract Moloch {
     }
     
     struct fundingProposal {
-        address proposer; // the member who submitted the proposal
-        address venture; // the venture that wishes to be a funded 
-        uint256 startingPeriod; // the period in which voting can start for this proposal
-        uint256 yesVotes; // the total number of YES votes for this proposal
-        uint256 noVotes; // the total number of NO votes for this proposal
-        bool processed; // true only if the proposal has been processed
-        bool didPass; // true only if the proposal passed
+        address proposer; // the member who submitted the funding proposal
+        address venture; // the venture that wishes to be a funded by guildBank
+        uint256 startingPeriod; // the period in which voting can start for this funding proposal
+        uint256 yesVotes; // the total number of YES votes for this funding proposal
+        uint256 noVotes; // the total number of NO votes for this funding proposal
+        bool processed; // true only if the funding proposal has been processed
+        bool didPass; // true only if the funding proposal passed
         bool aborted; // true only if applicant calls "abort" before end of voting period
-        uint256 tokenSubscription; // amount of tokens offered for subscription
-        address commitmentToken; // token type offered for subscription
-        string details; // venture details - could be IPFS hash, plaintext, or JSON
-        uint256 maxTotalSharesAtYesVote; // the maximum # of total shares encountered at a yes vote on this proposal
-        mapping (address => Vote) votesByMember; // the votes on this proposal by each member
+        uint256 tokenSubscription; // amount of venture tokens offered for subscription
+        address ventureToken; // venture token offered for subscription
+        string details; // venture funding details - could be IPFS hash, plaintext, or JSON describing venture and funding proposal
+        uint256 maxTotalSharesAtYesVote; // the maximum # of total shares encountered at a yes vote on this funding proposal
+        mapping (address => Vote) votesByMember; // the votes on this funding proposal by each member
     }
 
     mapping (address => Member) public members;
@@ -557,7 +557,7 @@ contract Moloch {
     function submitFundingProposal(
         address venture,
         uint256 tokenSubscription,
-        address commitmentToken,
+        address ventureToken,
         uint256 fundingRequested,
         string memory details
     )
@@ -572,7 +572,7 @@ contract Moloch {
         require(approvedToken.transferFrom(msg.sender, address(this), proposalDeposit), "Moloch::submitProposal - proposal deposit token transfer failed");
 
         // collect token commitment from venture applicant and store it in the Moloch until the proposal is processed
-        require(IERC20(commitmentToken).transferFrom(venture, address(this), tokenSubscription), "Moloch::submitProposal - commitment token transfer failed");
+        require(IERC20(ventureToken).transferFrom(venture, address(this), tokenSubscription), "Moloch::submitProposal - venture token transfer failed");
 
         // compute startingPeriod for proposal
         uint256 startingPeriod = max(
@@ -741,25 +741,25 @@ contract Moloch {
 
             fundingproposal.didPass = true;
 
-            // transfer subcribed tokens to guild bank
+            // transfer subcribed venture tokens to guild bank
             require(
-                fundingproposal.IERC20(commitmentToken).transfer(address(guildBank), fundingproposal.tokenSubscription),
-                "Moloch::processProposal - token transfer to guild bank failed"
+                fundingproposal.IERC20(ventureToken).transfer(address(guildBank), fundingproposal.tokenSubscription),
+                "Moloch::processProposal - venture token transfer to guild bank failed"
             );
             
-            require(IERC20(commitmentToken).
+            require(IERC20(ventureToken).
             
             // release requested funding to proposed venture 
             require(
                 approvedToken.transfer(address(fundingproposal.venture), fundingproposal.fundingRequested),
-                "Moloch::processProposal - token transfer from guild bank failed"
+                "Moloch::processProposal - funding token transfer from guild bank failed"
             );
 
         // PROPOSAL FAILED OR ABORTED
         } else {
             // return all tokens to the applicant
             require(
-                fundingproposal.commitmentToken.transfer(fundingproposal.venture, fundingproposal.tokenSubscription),
+                fundingproposal.ventureToken.transfer(fundingproposal.venture, fundingproposal.tokenSubscription),
                 "Moloch::processProposal - failing vote token transfer failed"
             );
         }
@@ -781,7 +781,7 @@ contract Moloch {
             fundingproposal.venture,
             fundingproposal.proposer,
             fundingproposal.tokenSubscription,
-            fundingproposal.commitmentToken,
+            fundingproposal.ventureToken,
             didPass
         );
     }
