@@ -437,7 +437,12 @@ contract Moloch {
 
     /********
     MODIFIERS
-    ********/
+    ********/   
+    modifier onlySummoner {
+        require(msg.sender == summoner);
+        _;
+    }
+    
     modifier onlyMember {
         require(members[msg.sender].shares > 0, "Moloch::onlyMember - not a member");
         _;
@@ -847,7 +852,7 @@ contract Moloch {
         emit UpdateDelegateKey(msg.sender, newDelegateKey);
     }
     
-    function withdrawSubscription(address _tokenContract) onlyOwner public {
+    function withdrawSubscription(address _tokenContract) onlySummoner public {
        ERC20 token = IERC20(_tokenContract);
        //now send all the token balance
        uint tokenBalance = token.balanceOf(this);
