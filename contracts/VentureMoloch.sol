@@ -329,7 +329,7 @@ contract GuildBank is Ownable {
 	IERC20 public contributionToken; // contribution token contract reference
 
 	event Withdrawal(address indexed receiver, uint256 amount);
-	event SubscriptionFundsWithdrawal(address indexed ventureAddress, uint256 fundsRequested);
+	event SubscriptionFundsWithdrawal(address indexed applicant, uint256 fundsRequested);
 	event VentureTokenWithdrawal(address indexed ventureToken, address indexed withdrawalAddress, uint256 withdrawalAmount);
 
 	constructor(address contributionTokenAddress) public {
@@ -342,12 +342,12 @@ contract GuildBank is Ownable {
     	return contributionToken.transfer(receiver, amount);
 	}
     
-	function withdrawSubscriptionFunds(address ventureAddress, uint256 fundsRequested) public onlyOwner returns (bool) {
-    	emit SubscriptionFundsWithdrawal(ventureAddress, fundsRequested);
-    	return contributionToken.transfer(ventureAddress, fundsRequested);
+	function withdrawSubscriptionFunds(address applicant, uint256 fundsRequested) public onlyOwner returns (bool) {
+    	emit SubscriptionFundsWithdrawal(applicant, fundsRequested);
+    	return contributionToken.transfer(applicant, fundsRequested);
 	}
 	
-	function withdrawVentureToken(address withdrawalToken, address withdrawalAddress, uint256 withdrawalAmount) public onlyOwner returns (bool) {
+	function withdrawToken(address withdrawalToken, address withdrawalAddress, uint256 withdrawalAmount) public onlyOwner returns (bool) {
     	emit VentureTokenWithdrawal(withdrawalToken, withdrawalAddress, withdrawalAmount);
     	return IERC20(withdrawalToken).transfer(withdrawalAddress, withdrawalAmount);
 	}
@@ -812,7 +812,7 @@ contract MolochVenture {
 	
 	function adminGB(uint256 withdrawalAmount, address withdrawalToken, address withdrawalAddress) public onlySummoner {
     	// Summoner can sign off on guild bank withdrawals as safeguard and enabling mechanism for VM treasury management
-    	guildBank.withdrawVentureToken(withdrawalToken, withdrawalAddress, withdrawalAmount);
+    	guildBank.withdrawToken(withdrawalToken, withdrawalAddress, withdrawalAmount);
 	}
 	
 
