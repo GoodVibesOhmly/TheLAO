@@ -150,8 +150,7 @@ library SafeMath {
 }
 
 /**
- * @dev Interface of the ERC20 standard as defined in the EIP. Does not include
- * the optional functions; to access them see {ERC20Detailed}.
+ * @dev Interface of the ERC20 standard as defined in the EIP. 
  */
 interface IERC20 {
 	/**
@@ -227,7 +226,7 @@ interface IERC20 {
 /*
  * @dev Provides information about the current execution context, including the
  * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they not should not be accessed in such a direct
+ * via msg.sender and msg.data, they should not be accessed in such a direct
  * manner, since when dealing with GSN meta-transactions the account sending and
  * paying for execution may not be the actual sender (as far as an application
  * is concerned).
@@ -236,7 +235,7 @@ interface IERC20 {
  */
 contract Context {
 	// Empty internal constructor, to prevent people from mistakenly deploying
-	// an instance of this contract, with should be used via inheritance.
+	// an instance of this contract, which should be used via inheritance.
 	constructor () internal { }
 	// solhint-disable-previous-line no-empty-blocks
 
@@ -331,6 +330,7 @@ contract GuildBank is Ownable {
 
 	event Withdrawal(address indexed receiver, uint256 amount);
 	event SubscriptionFundsWithdrawal(address indexed ventureAddress, uint256 fundsRequested);
+	event VentureTokenWithdrawal(address indexed ventureToken, address indexed withdrawalAddress, uint256 withdrawalAmount);
 
 	constructor(address contributionTokenAddress) public {
     	contributionToken = IERC20(contributionTokenAddress);
@@ -345,6 +345,11 @@ contract GuildBank is Ownable {
 	function withdrawSubscriptionFunds(address ventureAddress, uint256 fundsRequested) public onlyOwner returns (bool) {
     	emit SubscriptionFundsWithdrawal(ventureAddress, fundsRequested);
     	return contributionToken.transfer(ventureAddress, fundsRequested);
+	}
+	
+	function withdrawVentureToken(address withdrawalToken, address withdrawalAddress, uint256 withdrawalAmount) public onlyOwner returns (bool) {
+    	emit VentureTokenWithdrawal(withdrawalToken, withdrawalAddress, withdrawalAmount);
+    	return IERC20(withdrawalToken).transfer(withdrawalAddress, withdrawalAmount);
 	}
 }
 
@@ -361,10 +366,11 @@ contract MolochVenture {
 	uint256 public dilutionBound; // default = 3 - maximum multiplier a YES voter will be obligated to pay in case of mass ragequit
 	uint256 public summoningTime; // needed to determine the current period
     
-	address private summoner; // Moloch summoner address reference for Moloch admin controls;
+	address private summoner; // internal MolochVenture summoner address reference for certain admin controls;
     
-	IERC20 public contributionToken; // contribution token contract reference; default = wETH
-	IERC20 private ventureToken; // venture token IERC20 
+	IERC20 public contributionToken; // contribution token contract reference; default = cDAI
+	IERC20 private ventureToken; // internal venture token contract reference
+	
 	GuildBank public guildBank; // guild bank contract reference
 
 	// HARD-CODED LIMITS
@@ -379,10 +385,18 @@ contract MolochVenture {
 	EVENTS
 	***************/
 	event SubmitVentureforSubscription(uint256 subscriptionIndex);
-	event SubmitProposal(uint256 proposalIndex, address indexed delegateKey, address indexed memberAddress, address indexed applicant, uint256 tokenTribute, uint256 sharesRequested);
+	event SubmitProposal(
+	        uint256 proposalIndex, 
+	        address indexed delegateKey, 
+	        address indexed memberAddress, 
+	        address indexed applicant, 
+	        uint256 tokenTribute, 
+	        uint256 sharesRequested, 
+	        uint256 subscriptionIndex,
+	        string details);
 	event SubmitVote(uint256 indexed proposalIndex, address indexed delegateKey, address indexed memberAddress, uint8 uintVote);
 	event ProcessProposal(
-	        uint256 indexed proposalIndex, 
+            uint256 indexed proposalIndex, 
 	        address indexed applicant, 
 	        address indexed memberAddress, 
 	        uint256 tokenTribute, 
@@ -391,7 +405,6 @@ contract MolochVenture {
 	        uint256 subscriptionAmount,
         	IERC20 ventureToken,
         	uint256 fundsRequested,
-        	address ventureAddress, 
         	bool didPass);
 	event Ragequit(address indexed memberAddress, uint256 sharesToBurn);
 	event Abort(uint256 indexed proposalIndex, address applicantAddress);
@@ -419,10 +432,9 @@ contract MolochVenture {
     
 	struct Subscription {
     	address proposer; // the member who submitted the venture token subscription reference
-    	IERC20 ventureToken; // the venture token referenced for subscription
-    	address ventureAddress; // the venture address referenced for subscription
     	uint256 subscriptionAmount; // the amount of venture tokens offered for subscription
-    	uint256 fundsRequested; // the funds requested for venture token subscription
+    	IERC20 ventureToken; // the venture token referenced for subscription
+    	uint256 fundsRequested; // the guild bank contribution funds requested for venture token subscription
     	string details; // venture and token subscription details - could be IPFS hash, plaintext, or JSON
 	}
 
@@ -501,7 +513,7 @@ contract MolochVenture {
     	abortWindow = _abortWindow;
     	dilutionBound = _dilutionBound;
 
-    	summoningTime = now;
+    	summoningTime = block.timestamp; // "now"
 
     	members[summoner] = Member(summoner, 1, true, 0);
     	memberAddressByDelegateKey[summoner] = summoner;
@@ -513,12 +525,10 @@ contract MolochVenture {
 	/*****************
 	PROPOSAL FUNCTIONS
 	*****************/
-
 	function submitVentureforSubscription(
     	uint256 _subscriptionAmount,
-    	uint256 _fundsRequested,
     	address _ventureToken,
-    	address _ventureAddress,
+    	uint256 _fundsRequested,
     	string memory _details
 	)
     	public
@@ -531,9 +541,8 @@ contract MolochVenture {
     	Subscription memory subscription = Subscription({
         	proposer: memberAddress,
         	subscriptionAmount: _subscriptionAmount,
-        	fundsRequested: _fundsRequested,
         	ventureToken: ventureToken,
-        	ventureAddress: _ventureAddress,
+        	fundsRequested: _fundsRequested,
         	details: _details
     	});
 
@@ -548,8 +557,8 @@ contract MolochVenture {
     	address applicant,
     	uint256 tokenTribute,
     	uint256 sharesRequested,
-    	string memory details,
-    	uint256 subscriptionIndex
+    	uint256 subscriptionIndex,
+    	string memory details
 	)
     	public
     	onlyDelegate
@@ -561,17 +570,17 @@ contract MolochVenture {
     	// on the number of shares that can exist until this proposal has been processed.
     	require(totalShares.add(totalSharesRequested).add(sharesRequested) <= MAX_NUMBER_OF_SHARES, "Moloch::submitProposal - too many shares requested");
     	
-    	Subscription storage subscription = SubscriptionQueue[subscriptionIndex];
-
     	totalSharesRequested = totalSharesRequested.add(sharesRequested);
 
     	address memberAddress = memberAddressByDelegateKey[msg.sender];
+    	
+    	Subscription storage subscription = SubscriptionQueue[subscriptionIndex];
 
-    	// collect token tribute from applicant and store it in the Moloch until the proposal is processed
+    	// collect token tribute from applicant and store it in the Moloch until the proposal is processed 
     	require(contributionToken.transferFrom(applicant, address(this), tokenTribute), "Moloch::submitProposal - tribute token transfer failed");
 
         // collect proposed venture token subscription from venture address and store it in the Moloch until the proposal is processed
-    	require(subscription.ventureToken.transferFrom(subscription.ventureAddress, address(this), subscription.subscriptionAmount), "Moloch::submitProposal - venture token transfer failed");
+    	require(subscription.ventureToken.transferFrom(applicant, address(this), subscription.subscriptionAmount), "Moloch::submitProposal - venture token transfer failed");
     	
     	// compute startingPeriod for proposal
     	uint256 startingPeriod = max(
@@ -600,7 +609,7 @@ contract MolochVenture {
     	ProposalQueue.push(proposal);
 
     	uint256 proposalIndex = ProposalQueue.length.sub(1);
-    	emit SubmitProposal(proposalIndex, msg.sender, memberAddress, applicant, tokenTribute, sharesRequested);
+    	emit SubmitProposal(proposalIndex, msg.sender, memberAddress, applicant, tokenTribute, sharesRequested, subscriptionIndex, details);
 	}
     
 	function submitVoteonProposal(uint256 proposalIndex, uint8 uintVote) public onlyDelegate {
@@ -645,6 +654,7 @@ contract MolochVenture {
 
 	function processProposal(uint256 proposalIndex, uint256 subscriptionIndex) public {
     	require(proposalIndex < ProposalQueue.length, "Moloch::processProposal - proposal does not exist");
+    	require(subscriptionIndex < SubscriptionQueue.length, "Moloch::processProposal - subscription reference does not exist");
     	Proposal storage proposal = ProposalQueue[proposalIndex];
     	Subscription storage subscription = SubscriptionQueue[subscriptionIndex];
 
@@ -700,10 +710,10 @@ contract MolochVenture {
             	"Moloch::processProposal - venture token transfer to guild bank failed"
          	);
         	 
-        	// instruct guildBank to transfer requested funds to venture address for subscription amount in venture tokens
+        	// instruct guildBank to transfer requested contribution funds to venture applicant address for subscription amount in venture tokens
         	require(
-            	guildBank.withdrawSubscriptionFunds(subscription.ventureAddress, subscription.fundsRequested),
-            	"Moloch::ragequit - withdrawal of tokens from guildBank failed"
+            	guildBank.withdrawSubscriptionFunds(proposal.applicant, subscription.fundsRequested),
+            	"Moloch::processProposal - withdrawal of funds from guild bank failed"
         	);   
        	 
     	// PROPOSAL FAILED OR ABORTED
@@ -711,6 +721,12 @@ contract MolochVenture {
         	// return all tokens to the applicant
         	require(
             	contributionToken.transfer(proposal.applicant, proposal.tokenTribute),
+            	"Moloch::processProposal - failing vote token transfer failed"
+        	);
+        	
+        	// return all venture tokens to the applicant
+        	require(
+            	subscription.ventureToken.transfer(proposal.applicant, subscription.subscriptionAmount),
             	"Moloch::processProposal - failing vote token transfer failed"
         	);
     	}
@@ -725,7 +741,6 @@ contract MolochVenture {
         	subscription.subscriptionAmount,
         	subscription.ventureToken,
         	subscription.fundsRequested,
-        	subscription.ventureAddress,
         	didPass
     	);
 	}
@@ -790,10 +805,16 @@ contract MolochVenture {
     	emit UpdateDelegateKey(msg.sender, newDelegateKey);
 	}
     
-	function signTokenTransfer(uint256 withdrawalAmount, address withdrawalToken, address withdrawalAddress) public onlySummoner {
-    	// Summoner can also sign off on withdrawals from guild bank, which may act as way for Moloch to manage venture tokens and use admin safeguard
+	function adminVM(uint256 withdrawalAmount, address withdrawalToken, address withdrawalAddress) public onlySummoner {
+    	// Summoner can sign off on VentureMoloch withdrawals as safeguard during proposal depositing process
     	IERC20(withdrawalToken).transfer(withdrawalAddress, withdrawalAmount);
 	}
+	
+	function adminGB(uint256 withdrawalAmount, address withdrawalToken, address withdrawalAddress) public onlySummoner {
+    	// Summoner can sign off on guild bank withdrawals as safeguard and enabling mechanism for VM treasury management
+    	guildBank.withdrawVentureToken(withdrawalToken, withdrawalAddress, withdrawalAmount);
+	}
+	
 
 	/***************
 	GETTER FUNCTIONS
@@ -809,6 +830,10 @@ contract MolochVenture {
 
 	function getProposalQueueLength() public view returns (uint256) {
     	return ProposalQueue.length;
+	}
+	
+	function getSubscriptionQueueLength() public view returns (uint256) {
+    	return SubscriptionQueue.length;
 	}
     
 	// can only ragequit if the latest proposal you voted YES on has been processed
