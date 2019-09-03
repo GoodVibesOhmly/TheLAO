@@ -1,3 +1,5 @@
+// Simpler draft design for Venture Moloch to support Ethereum ventures
+
 pragma solidity 0.5.3;
 
 /**
