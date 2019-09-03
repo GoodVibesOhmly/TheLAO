@@ -10,7 +10,7 @@ import "./oz/SafeMath.sol";
 import "./oz/IERC20.sol";
 import "./GuildBank.sol";
 
-contract VentureMoloch {
+contract VentureMolochLAO { // THE LAO
 	using SafeMath for uint256;
 
 	/***************
@@ -133,7 +133,7 @@ contract VentureMoloch {
 	********/ 
 	//onlySummoner is add-on to original Moloch Code. Allows summoner to act as administrator for guild bank.  
 	modifier onlySummoner {
-    	require(msg.sender == summoner, "Moloch:onlySummoner - not the summoner");
+    	require(msg.sender == summoner);
     	_;
 	}
     
@@ -400,9 +400,8 @@ contract VentureMoloch {
     	require(canRagequit(member.highestIndexYesVote), "Moloch::ragequit - cant ragequit until highest index proposal member voted YES on is processed");
     	
     	// TO-DO // revise fair share withdrawalAmount with safeMath
-    	//uint256 withdrawalAmount = (member.tributeAmount / totalContributed) * ((totalContributed + totalDividends) - totalWithdrawals);
-    	//TODO - test w/ SafeMath
-    	uint256 withdrawalAmount = (member.tributeAmount.div(totalContributed)).mul(totalContributed.add(totalDividends)).sub(totalWithdrawals);
+    	uint256 withdrawalAmount = (member.tributeAmount / totalContributed) * ((totalContributed + totalDividends) - totalWithdrawals);
+
     	// burn shares and other pertinent membership records
     	totalShares = totalShares.sub(member.shares);
     	member.shares = 0;
@@ -467,16 +466,8 @@ contract VentureMoloch {
         Member storage member = members[msg.sender];
 
     	// claim fair share of declared member dividend amount
-    	//uint256 dividendAmount = ((member.tributeAmount / totalContributed) * totalDividends) - member.lastTotalDividends;
+    	uint256 dividendAmount = ((member.tributeAmount / totalContributed) * totalDividends) - member.lastTotalDividends;
     	
-    	//using SafeMathclaim fair share of declared member amount 
-    	uint256 dividendAmount = totalDividends.mul(member.tributeAmount.div(totalContributed)).sub(member.lastTotalDividends);
-    	
-    	//member's dividend amount must be less than what is available in totalDividends
-    	require (dividendAmount <= totalDividends, "Moloch - not enough funds not available");
-    	//TODO
-    	//check map dividendAmount to each member? or set lastTotalDividend to 0?
-
     	// instruct guild bank to transfer fair share to member
     	require(
         	guildBank.withdrawDividend(msg.sender, dividendAmount),
