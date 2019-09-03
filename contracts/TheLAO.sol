@@ -1,5 +1,11 @@
 pragma solidity 0.5.3;
 
+// WIP - please make comments through PRs! 
+
+// Purpose: The LAO is designed to streamline the funding of Ethereum ventures with legal security.
+
+// Code is currently in testing // please review carefully before deploying for your own purposes!
+
 import "./oz/SafeMath.sol";
 import "./oz/IERC20.sol";
 import "./GuildBank.sol";
