@@ -406,7 +406,6 @@ contract VentureMolochLAO { // THE LAO
     	totalShares = totalShares.sub(member.shares);
     	member.shares = 0;
     	member.tributeAmount = 0; 
-    	member.lastTotalDividends = 0;
     	
     	totalWithdrawals = totalWithdrawals.add(withdrawalAmount); // update total guild bank withdrawal tally to reflect raqequit amount
 
