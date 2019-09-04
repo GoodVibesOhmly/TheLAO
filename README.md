@@ -2,13 +2,19 @@ STEAL THIS CODE
 
 # The LAO
 
-> Moloch whose fingers are ten armies! 
+> The Way produces one, one produces two.
 
-~ Allen Ginsberg, Howl
+> The two produce the three and the three produce all things.
+
+> All things submit to yin and embrace yang.
+
+> They soften their energy to achieve harmony. 
+
+~ Lao Tzu, Dao De Jing
 
 ## Design Principles
 
-In developing The LAO, we realized that the more Solidity we wrote, the greater the likelihood that we would lose everyone's money. In order to prioritize security, we took simplicity and elegance as our primary design principles. We consciously skipped many features, and the result is what we believe to be a Minimally Viable LAO.
+In designing a *Minimum Viable VentureMoloch LAO*, we borrowed greatly from the original Moloch design that emphasizes simple Solidity scripts for voting and other member transactions, largely relying on off-chain coordination to scale membership and deliver funding to promising Ethereum ventures. In our case, we will further imbue LAO actions with legal effect through OpenLaw smart agreements and establish a proxy entity registered in Delaware.
 
 ## WIP
 
