@@ -400,7 +400,7 @@ contract VentureMolochLAO { // THE LAO
     	require(canRagequit(member.highestIndexYesVote), "Moloch::ragequit - cant ragequit until highest index proposal member voted YES on is processed");
     	
     	// TO-DO // revise fair share withdrawalAmount with safeMath
-    	uint256 withdrawalAmount = (member.tributeAmount / totalContributed) * ((totalContributed + totalDividends) - totalWithdrawals);
+    	uint256 withdrawalAmount = (member.tributeAmount / totalContributed) * (totalContributed + totalDividends - totalWithdrawals);
 
     	// burn shares and other pertinent membership records
     	totalShares = totalShares.sub(member.shares);
@@ -466,7 +466,7 @@ contract VentureMolochLAO { // THE LAO
         Member storage member = members[msg.sender];
 
     	// claim fair share of declared member dividend amount
-    	uint256 dividendAmount = ((member.tributeAmount / totalContributed) * totalDividends) - member.lastTotalDividends;
+    	uint256 dividendAmount = (member.tributeAmount / totalContributed) * (totalDividends - member.lastTotalDividends);
     	
     	// instruct guild bank to transfer fair share to member
     	require(
