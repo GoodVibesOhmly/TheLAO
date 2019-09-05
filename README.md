@@ -14,8 +14,8 @@ STEAL THIS CODE
 
 ## Design Principles
 
-In designing a *Minimum Viable VentureMoloch LAO*, we borrowed greatly from the original Moloch design that emphasizes simple Solidity scripts for voting and other member transactions, largely relying on off-chain coordination to scale membership and deliver funding to promising Ethereum ventures. In our case, we will further imbue LAO actions with legal effect through OpenLaw smart agreements and establish a proxy entity registered in Delaware.
+In designing a *Minimum Viable Venture Moloch*, we borrowed greatly from the original Moloch design that emphasizes simple Solidity scripts for voting and other member transactions, largely relying on off-chain coordination to scale membership and deliver funding to promising Ethereum ventures. In our case, we will further imbue LAO actions with legal effect through OpenLaw smart agreements and establish a proxy entity.
 
-## WIP
+## [vmLAO Design Breakdown against original Moloch DAO contracts](https://medium.com/@rosscampbell9/venturing-into-the-lao-comparing-molochdao-and-vmlao-solidity-designs-81da2361dba5)
 
 ![SPACEINVADERGIF](https://media.giphy.com/media/KY2ZMhnCxP008/giphy.gif)
