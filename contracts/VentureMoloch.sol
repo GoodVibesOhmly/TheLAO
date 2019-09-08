@@ -685,7 +685,7 @@ contract VentureMoloch {
         	// instruct guildBank to transfer requested funds in guild contributionToken to applicant address
         	require(
             	guildBank.withdrawFunds(proposal.applicant, proposal.fundsRequested),
-            	"Moloch::ragequit - withdrawal of tokens from guildBank failed"
+            	"Moloch::processProposal - withdrawal of tokens from guildBank failed"
         	);   
        	 
     	// PROPOSAL FAILED OR ABORTED
