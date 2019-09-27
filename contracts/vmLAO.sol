@@ -341,11 +341,13 @@ contract Ownable is Context {
 contract GuildBank is Ownable {
     using SafeMath for uint256;
 
+    uint256 decimalFactor = 100000000000000000000000000;
     IERC20 private contributionToken; // contribution token contract reference
 
     event Withdrawal(address indexed receiver, uint256 withdrawalAmount);
     event FundsWithdrawal(address indexed applicant, uint256 fundsRequested);
     event AssetWithdrawal(IERC20 assetToken, address indexed receiver, uint256 amount);
+    event DividendsAirdrop();
     
     // contributionToken is used to fund ventures and distribute dividends, e.g., wETH or DAI
     constructor(address contributionTokenAddress) public {
@@ -803,20 +805,17 @@ contract VentureMolochLAO { // THE LAO
         return guildBank.adminWithdrawAsset(assetToken, receiver, amount);
     }
    
-    function airdropTokens(address[] _recipient, uint256 airdropAmount) public onlySummoner {
-    uint256 airdropped;
-    for(uint256 i = 0; i< _recipient.length; i++)
+    function airdropTokens(address[] memory _recipient, uint256 airdropAmount) public onlySummoner {
+        uint256 airdropped;
+        for(uint256 i = 0; i< _recipient.length; i++)
     {
-        if (!airdrops[_recipient[i]]) {
-          airdrops[_recipient[i]] = true;
+         {
           require(contributionToken.transfer(_recipient[i], airdropAmount * decimalFactor));
           airdropped = airdropped.add(airdropAmount * decimalFactor);
         }
     }
-    // AVAILABLE_AIRDROP_SUPPLY = AVAILABLE_AIRDROP_SUPPLY.sub(airdropped); // counter function
-    // AVAILABLE_TOTAL_SUPPLY = AVAILABLE_TOTAL_SUPPLY.sub(airdropped); // counter function
-    // grandTotalClaimed = grandTotalClaimed.add(airdropped); // counter function
   }
+  
   
     /***************
     GETTER FUNCTIONS
