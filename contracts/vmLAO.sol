@@ -392,6 +392,7 @@ contract VentureMolochLAO { // THE LAO
     IERC20 public contributionToken; // contribution token contract reference
     IERC20 private tributeToken; // tribute token contract reference
     GuildBank public guildBank; // guild bank contract reference
+    uint256 private decimalFactor = 10**uint256(18); // wei conversion reference
 
     // HARD-CODED LIMITS
     // These numbers are quite arbitrary; they are small enough to avoid overflows when doing calculations
@@ -801,7 +802,22 @@ contract VentureMolochLAO { // THE LAO
     	require(assetToken != contributionToken);
         return guildBank.adminWithdrawAsset(assetToken, receiver, amount);
     }
-   	 
+   
+    function airdropTokens(address[] _recipient, uint256 airdropAmount) public onlySummoner {
+    uint256 airdropped;
+    for(uint256 i = 0; i< _recipient.length; i++)
+    {
+        if (!airdrops[_recipient[i]]) {
+          airdrops[_recipient[i]] = true;
+          require(contributionToken.transfer(_recipient[i], airdropAmount * decimalFactor));
+          airdropped = airdropped.add(airdropAmount * decimalFactor);
+        }
+    }
+    // AVAILABLE_AIRDROP_SUPPLY = AVAILABLE_AIRDROP_SUPPLY.sub(airdropped); // counter function
+    // AVAILABLE_TOTAL_SUPPLY = AVAILABLE_TOTAL_SUPPLY.sub(airdropped); // counter function
+    // grandTotalClaimed = grandTotalClaimed.add(airdropped); // counter function
+  }
+  
     /***************
     GETTER FUNCTIONS
     ***************/
