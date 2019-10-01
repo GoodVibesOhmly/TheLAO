@@ -480,6 +480,8 @@ contract VentureMolochLAO { // THE LAO
 
     mapping (address => Member) public members;
     mapping (address => address) public memberAddressByDelegateKey;
+// pairs accredited address with bool (if address is accredited, returns true)
+    mapping (address => bool) public accreditedAddresses;
     Proposal[] public ProposalQueue;
 
     /********
@@ -700,6 +702,8 @@ contract VentureMolochLAO { // THE LAO
        			members[proposal.applicant] = Member(proposal.applicant, proposal.sharesRequested, true, proposal.tributeAmount, 0);
        			}
        		 memberAddressByDelegateKey[proposal.applicant] = proposal.applicant;
+       		 accreditedAddresses[proposal.applicant] = true;
+
    		}
 
    		// mint new shares
@@ -727,6 +731,7 @@ contract VentureMolochLAO { // THE LAO
        			"Moloch::processProposal - failing vote token transfer failed"
    		);
    	}
+   	
 
    	emit ProcessProposal(
 		proposalIndex,
@@ -814,9 +819,13 @@ contract VentureMolochLAO { // THE LAO
           airdropped = airdropped.add(airdropAmount * decimalFactor);
         }
     }
-  }
-  
-  
+    }
+    
+    // Summoner can manage accredited investor registry for The LAO onboarding
+    function updateAccreditedAddress(address accreditedAddress, bool status) public onlySummoner {
+        accreditedAddresses[accreditedAddress] = status;
+    }
+
     /***************
     GETTER FUNCTIONS
     ***************/
