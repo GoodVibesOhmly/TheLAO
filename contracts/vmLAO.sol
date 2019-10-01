@@ -821,39 +821,11 @@ contract VentureMolochLAO { // THE LAO
     }
     }
     
-     // Summoner can add accredited investor addresses
-    function addAccreditedAddress(address accreditedAddress) public onlySummoner {
-       accreditedAddresses[accreditedAddress] = true;
-    }
-// Summoner can delete accredited investor addresses
-function deleteAccreditedAddress(address accreditedAddress) public onlySummoner {
-	accreditedAddresses[accreditedAddress] = false;
+    // Summoner can manage accredited investor registry for The LAO onboarding
+    function updateAccreditedAddress(address accreditedAddress, bool status) public onlySummoner {
+        accreditedAddresses[accreditedAddress] = status;
     }
 
-     // allows accredited investors to "buy in"
-     // NOTE: current members will also be able to buy in!
-    function buyIn(
-        uint256 tributeAmount,
-        IERC20 tributeTokenBuyIn,
-        uint256 sharesRequested, 
-        uint256 fundsRequested, 
-        string memory details) 
-        public payable {
-        require(msg.value == 2000 ether);
-        if (accreditedAddresses[msg.sender] == true) {
-            submitProposal(msg.sender, tributeAmount, tributeTokenBuyIn, sharesRequested, fundsRequested, details);
-        }
-        // do we need to send money back?? 
-        // uint balanceBeforeTransfer = this.balance;
-        // balance = msg.value
-        // assert(accreditedAddresses[accreditedAddress]) {
-        //    return this.balance;
-        // 
-            
-        }
-
-    
-  
     /***************
     GETTER FUNCTIONS
     ***************/
