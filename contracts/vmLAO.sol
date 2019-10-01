@@ -480,7 +480,7 @@ contract VentureMolochLAO { // THE LAO
 
     mapping (address => Member) public members;
     mapping (address => address) public memberAddressByDelegateKey;
-// pairs accredited address with bool (if address is accredited, returns true)
+    // pairs accredited address with bool (if address is accredited, returns true)
     mapping (address => bool) public accreditedAddresses;
     Proposal[] public ProposalQueue;
 
