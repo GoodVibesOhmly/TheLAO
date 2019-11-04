@@ -2,7 +2,7 @@ pragma solidity 0.5.3;
 
 // WIP - please make comments through PRs!
 
-// Purpose: The LAO is designed to streamline the funding of Ethereum ventures with legal security.
+// Purpose: vmLAO is designed to streamline the funding of Ethereum ventures with legal security and minimal administration.
 
 // Code is currently in testing // please review carefully before deploying for your own purposes!
 
@@ -363,13 +363,13 @@ contract GuildBank is Ownable {
     // Funds are withdrawn on processProposal
     function withdrawFunds(address applicant, uint256 fundsRequested) public onlyOwner returns (bool) {
     	emit FundsWithdrawal(applicant, fundsRequested);
-   	    return contributionToken.transfer(applicant, fundsRequested);
+   	return contributionToken.transfer(applicant, fundsRequested);
     }
     
     // onlySummoner in Moloch can withdraw and administer guild asset tokens
     function adminWithdrawAsset(IERC20 assetToken, address receiver, uint256 amount) public onlyOwner returns(bool) {
-   	 emit AssetWithdrawal(assetToken, receiver, amount);
-   	 return IERC20(assetToken).transfer(receiver, amount);
+   	emit AssetWithdrawal(assetToken, receiver, amount);
+   	return IERC20(assetToken).transfer(receiver, amount);
     }
 }
 
@@ -429,7 +429,7 @@ contract VentureMolochLAO { // vmLAO
         uint256 sharesRequested,
         uint256 fundsRequested,
         string details,
-   	    bool didPass);
+   	bool didPass);
     event Ragequit(address indexed memberAddress, uint256 sharesToBurn);
     event Abort(uint256 indexed proposalIndex, address applicantAddress);
     event UpdateDelegateKey(address indexed memberAddress, address newDelegateKey);
@@ -443,38 +443,38 @@ contract VentureMolochLAO { // vmLAO
     uint256 public totalFundsRequested = 0; // total shares that have been requested in unprocessed proposals
     
     // guild bank accounting in base contribution token
-	uint256 public totalContributed = 0; // total member contributions to guild bank
+    uint256 public totalContributed = 0; // total member contributions to guild bank
     
     enum Vote {
     	Null, // default value, counted as abstention
-	    Yes,
-	    No
+	Yes,
+	No
     }
     
     struct Member {
     	address delegateKey; // the key responsible for submitting proposals and voting - defaults to member address unless updated
         uint256 shares; // the # of shares assigned to this member
-   	    bool exists; // always true once a member has been created
-   	    uint256 tributeAmount; // amount contributed by member to guild bank 
-   	    uint256 highestIndexYesVote; // highest proposal index # on which the member voted YES
+   	bool exists; // always true once a member has been created
+   	uint256 tributeAmount; // amount contributed by member to guild bank 
+   	uint256 highestIndexYesVote; // highest proposal index # on which the member voted YES
     }
     
     struct Proposal {
-   	    address proposer; // the member who submitted the proposal
-   	    address applicant; // the applicant who wishes to become a member - this key will be used for withdrawals
-   	    uint256 tributeAmount; // amount of tokens offered as tribute
-   	    IERC20 tributeToken; // the tribute token reference for subscription or alternative contribution
-   	    uint256 sharesRequested; // the # of shares the applicant is requesting
-   	    uint256 fundsRequested; // the funds requested for applicant
-   	    string details; // proposal details - could be IPFS hash, plaintext, or JSON
-   	    uint256 startingPeriod; // the period in which voting can start for this proposal
-   	    uint256 yesVotes; // the total number of YES votes for this proposal
-   	    uint256 noVotes; // the total number of NO votes for this proposal
-   	    bool processed; // true only if the proposal has been processed
-   	    bool didPass; // true only if the proposal passed
-   	    bool aborted; // true only if applicant calls "abort" before end of voting period
-   	    uint256 maxTotalSharesAtYesVote; // the maximum # of total shares encountered at a yes vote on this proposal
-   	    mapping (address => Vote) votesByMember; // the votes on this proposal by each member
+   	address proposer; // the member who submitted the proposal
+   	address applicant; // the applicant who wishes to become a member - this key will be used for withdrawals
+   	uint256 tributeAmount; // amount of tokens offered as tribute
+   	IERC20 tributeToken; // the tribute token reference for subscription or alternative contribution
+   	uint256 sharesRequested; // the # of shares the applicant is requesting
+   	uint256 fundsRequested; // the funds requested for applicant
+   	string details; // proposal details - could be IPFS hash, plaintext, or JSON
+   	uint256 startingPeriod; // the period in which voting can start for this proposal
+   	uint256 yesVotes; // the total number of YES votes for this proposal
+   	uint256 noVotes; // the total number of NO votes for this proposal
+   	bool processed; // true only if the proposal has been processed
+   	bool didPass; // true only if the proposal passed
+   	bool aborted; // true only if applicant calls "abort" before end of voting period
+   	uint256 maxTotalSharesAtYesVote; // the maximum # of total shares encountered at a yes vote on this proposal
+   	mapping (address => Vote) votesByMember; // the votes on this proposal by each member
     }
 
     mapping (address => Member) public members;
@@ -486,12 +486,12 @@ contract VentureMolochLAO { // vmLAO
     ********/
     modifier onlyMember {
     	require(members[msg.sender].shares > 0, "Moloch::onlyMember - not a member");
-   	    _;
+   	_;
     }
 
     modifier onlyDelegate {
     	require(members[memberAddressByDelegateKey[msg.sender]].shares > 0, "Moloch::onlyDelegate - not a delegate");
-   	    _;
+   	_;
     }
     
     //onlySummoner is add-on to original Moloch Code. Allows summoner to act as administrator for guild bank.  
@@ -505,43 +505,43 @@ contract VentureMolochLAO { // vmLAO
     ********/
     constructor(
     	address _summoner,
-   	    address _contributionToken,
-   	    uint256 _periodDuration,
-   	    uint256 _votingPeriodLength,
-   	    uint256 _gracePeriodLength,
-   	    uint256 _abortWindow,
-   	    uint256 _dilutionBound) public {
-   	    require(_summoner != address(0), "Moloch::constructor - summoner cannot be 0");
-   	    require(_contributionToken != address(0), "Moloch::constructor - _contributionToken cannot be 0");
-   	    require(_periodDuration > 0, "Moloch::constructor - _periodDuration cannot be 0");
-   	    require(_votingPeriodLength > 0, "Moloch::constructor - _votingPeriodLength cannot be 0");
-   	    require(_votingPeriodLength <= MAX_VOTING_PERIOD_LENGTH, "Moloch::constructor - _votingPeriodLength exceeds limit");
-   	    require(_gracePeriodLength <= MAX_GRACE_PERIOD_LENGTH, "Moloch::constructor - _gracePeriodLength exceeds limit");
-   	    require(_abortWindow > 0, "Moloch::constructor - _abortWindow cannot be 0");
-   	    require(_abortWindow <= _votingPeriodLength, "Moloch::constructor - _abortWindow must be smaller than or equal to _votingPeriodLength");
-   	    require(_dilutionBound > 0, "Moloch::constructor - _dilutionBound cannot be 0");
+   	address _contributionToken,
+   	uint256 _periodDuration,
+   	uint256 _votingPeriodLength,
+   	uint256 _gracePeriodLength,
+   	uint256 _abortWindow,
+   	uint256 _dilutionBound) public {
+   	require(_summoner != address(0), "Moloch::constructor - summoner cannot be 0");
+   	require(_contributionToken != address(0), "Moloch::constructor - _contributionToken cannot be 0");
+   	require(_periodDuration > 0, "Moloch::constructor - _periodDuration cannot be 0");
+   	require(_votingPeriodLength > 0, "Moloch::constructor - _votingPeriodLength cannot be 0");
+   	require(_votingPeriodLength <= MAX_VOTING_PERIOD_LENGTH, "Moloch::constructor - _votingPeriodLength exceeds limit");
+   	require(_gracePeriodLength <= MAX_GRACE_PERIOD_LENGTH, "Moloch::constructor - _gracePeriodLength exceeds limit");
+   	require(_abortWindow > 0, "Moloch::constructor - _abortWindow cannot be 0");
+   	require(_abortWindow <= _votingPeriodLength, "Moloch::constructor - _abortWindow must be smaller than or equal to _votingPeriodLength");
+   	require(_dilutionBound > 0, "Moloch::constructor - _dilutionBound cannot be 0");
     	require(_dilutionBound <= MAX_DILUTION_BOUND, "Moloch::constructor - _dilutionBound exceeds limit");
 
-   	    summoner = _summoner;
+   	summoner = _summoner;
    	 
-   	    // contribution token is the base token for guild bank accounting
-   	    contributionToken = IERC20(_contributionToken);
+   	// contribution token is the base token for guild bank accounting
+   	contributionToken = IERC20(_contributionToken);
 
-   	    guildBank = new GuildBank(_contributionToken);
+   	guildBank = new GuildBank(_contributionToken);
 
-   	    periodDuration = _periodDuration;
-   	    votingPeriodLength = _votingPeriodLength;
-   	    gracePeriodLength = _gracePeriodLength;
-   	    abortWindow = _abortWindow;
-   	    dilutionBound = _dilutionBound;
+   	periodDuration = _periodDuration;
+   	votingPeriodLength = _votingPeriodLength;
+   	gracePeriodLength = _gracePeriodLength;
+   	abortWindow = _abortWindow;
+   	dilutionBound = _dilutionBound;
 
-   	    summoningTime = now;
+   	summoningTime = now;
 
-   	    members[summoner] = Member(summoner, 1, true, 0, 0);
-   	    memberAddressByDelegateKey[summoner] = summoner;
-   	    totalShares = 1;
+   	members[summoner] = Member(summoner, 1, true, 0, 0);
+   	memberAddressByDelegateKey[summoner] = summoner;
+   	totalShares = 1;
 
-   	    emit SummonComplete(summoner, 1);
+   	emit SummonComplete(summoner, 1);
     }
 
     /*****************
@@ -549,36 +549,36 @@ contract VentureMolochLAO { // vmLAO
     *****************/
     function submitProposal(
     	address applicant,
-   	    uint256 tributeAmount,
-   	    IERC20 _tributeToken,
-   	    uint256 sharesRequested,
-   	    uint256 fundsRequested,
-   	    string memory details) public onlyDelegate {
+   	uint256 tributeAmount,
+   	IERC20 _tributeToken,
+   	uint256 sharesRequested,
+   	uint256 fundsRequested,
+   	string memory details) public onlyDelegate {
 
-   	    // Make sure we won't run into overflows when doing calculations with shares.
-   	    // Note that totalShares + totalSharesRequested + sharesRequested is an upper bound
-   	    // on the number of shares that can exist until this proposal has been processed.
-   	    require(totalShares.add(totalSharesRequested).add(sharesRequested) <= MAX_NUMBER_OF_SHARES, "Moloch::submitProposal - too many shares requested");
+   	// Make sure we won't run into overflows when doing calculations with shares.
+   	// Note that totalShares + totalSharesRequested + sharesRequested is an upper bound
+   	// on the number of shares that can exist until this proposal has been processed.
+   	require(totalShares.add(totalSharesRequested).add(sharesRequested) <= MAX_NUMBER_OF_SHARES, "Moloch::submitProposal - too many shares requested");
    	 
-   	    totalSharesRequested = totalSharesRequested.add(sharesRequested);
-   	    totalFundsRequested = totalFundsRequested.add(fundsRequested);
+   	totalSharesRequested = totalSharesRequested.add(sharesRequested);
+   	totalFundsRequested = totalFundsRequested.add(fundsRequested);
 
-   	    address memberAddress = memberAddressByDelegateKey[msg.sender];
+   	address memberAddress = memberAddressByDelegateKey[msg.sender];
    	 
-   	    tributeToken = IERC20(_tributeToken);
-   	    contributionToken = IERC20(_tributeToken);
+   	tributeToken = IERC20(_tributeToken);
+   	contributionToken = IERC20(_tributeToken);
    	 
     	// collect token tribute from applicant and store it in the Moloch until the proposal is processed
-   	    require(tributeToken.transferFrom(applicant, address(this), tributeAmount), "Moloch::submitProposal - tribute token transfer failed");
+   	require(tributeToken.transferFrom(applicant, address(this), tributeAmount), "Moloch::submitProposal - tribute token transfer failed");
    	 
-   	    // compute startingPeriod for proposal
-   	    uint256 startingPeriod = max(
-		    getCurrentPeriod(),
+   	// compute startingPeriod for proposal
+   	uint256 startingPeriod = max(
+		getCurrentPeriod(),
         	ProposalQueue.length == 0 ? 0 : ProposalQueue[ProposalQueue.length.sub(1)].startingPeriod
    	        ).add(1);
 
-   	    // create proposal ...
-   	    Proposal memory proposal = Proposal({
+   	// create proposal ...
+   	Proposal memory proposal = Proposal({
         	proposer: memberAddress,
         	applicant: applicant,
         	tributeAmount: tributeAmount,
@@ -589,105 +589,105 @@ contract VentureMolochLAO { // vmLAO
         	startingPeriod: startingPeriod,
         	yesVotes: 0,
         	noVotes: 0,
-   		    processed: false,
-   		    didPass: false,
-   		    aborted: false,
-   		    maxTotalSharesAtYesVote: 0
+   		processed: false,
+   		didPass: false,
+   		aborted: false,
+   		maxTotalSharesAtYesVote: 0
    	    });
 
-   	    // ... and append it to the queue
-   	    ProposalQueue.push(proposal);
+   	// ... and append it to the queue
+   	ProposalQueue.push(proposal);
 
-   	    uint256 proposalIndex = ProposalQueue.length.sub(1);
+   	uint256 proposalIndex = ProposalQueue.length.sub(1);
    	    
-   	    emit SubmitProposal(
-   	 	    proposalIndex,
-   	 	    msg.sender,
-   	 	    memberAddress,
-   	 	    applicant,
-   	 	    tributeAmount,
-   	 	    tributeToken,
-   	 	    sharesRequested,
-   	 	    fundsRequested,
-   	 	    contributionToken,
-   	 	    details);
+   	emit SubmitProposal(
+   	 	 proposalIndex,
+   	 	 msg.sender,
+   	 	 memberAddress,
+   	 	 applicant,
+   	 	 tributeAmount,
+   	 	 tributeToken,
+   	 	 sharesRequested,
+   	 	 fundsRequested,
+   	 	 contributionToken,
+   	 	 details);
     }
     
     function submitVoteonProposal(uint256 proposalIndex, uint8 uintVote) public onlyDelegate {
     	address memberAddress = memberAddressByDelegateKey[msg.sender];
-   	    Member storage member = members[memberAddress];
+   	Member storage member = members[memberAddress];
 
-   	    require(proposalIndex < ProposalQueue.length, "Moloch::submitVote - proposal does not exist");
-   	    Proposal storage proposal = ProposalQueue[proposalIndex];
+   	require(proposalIndex < ProposalQueue.length, "Moloch::submitVote - proposal does not exist");
+   	Proposal storage proposal = ProposalQueue[proposalIndex];
 
-   	    require(uintVote < 3, "Moloch::submitVote - uintVote must be less than 3");
-   	    Vote vote = Vote(uintVote);
+   	require(uintVote < 3, "Moloch::submitVote - uintVote must be less than 3");
+   	Vote vote = Vote(uintVote);
 
-   	    require(getCurrentPeriod() >= proposal.startingPeriod, "Moloch::submitVote - voting period has not started");
-   	    require(!hasVotingPeriodExpired(proposal.startingPeriod), "Moloch::submitVote - proposal voting period has expired");
-   	    require(proposal.votesByMember[memberAddress] == Vote.Null, "Moloch::submitVote - member has already voted on this proposal");
-   	    require(vote == Vote.Yes || vote == Vote.No, "Moloch::submitVote - vote must be either Yes or No");
-   	    require(!proposal.aborted, "Moloch::submitVote - proposal has been aborted");
+   	require(getCurrentPeriod() >= proposal.startingPeriod, "Moloch::submitVote - voting period has not started");
+   	require(!hasVotingPeriodExpired(proposal.startingPeriod), "Moloch::submitVote - proposal voting period has expired");
+   	require(proposal.votesByMember[memberAddress] == Vote.Null, "Moloch::submitVote - member has already voted on this proposal");
+   	require(vote == Vote.Yes || vote == Vote.No, "Moloch::submitVote - vote must be either Yes or No");
+   	require(!proposal.aborted, "Moloch::submitVote - proposal has been aborted");
 
-   	    // store vote
-   	    proposal.votesByMember[memberAddress] = vote;
+   	// store vote
+   	proposal.votesByMember[memberAddress] = vote;
 
-   	    // count vote
-   	    if (vote == Vote.Yes) {
-		    proposal.yesVotes = proposal.yesVotes.add(member.shares);
+   	// count vote
+   	if (vote == Vote.Yes) {
+		proposal.yesVotes = proposal.yesVotes.add(member.shares);
 
-   		// set highest index (latest) yes vote - must be processed for member to ragequit
-   		if (proposalIndex > member.highestIndexYesVote) {
-       	    member.highestIndexYesVote = proposalIndex;
-   		}
+   	// set highest index (latest) yes vote - must be processed for member to ragequit
+   	if (proposalIndex > member.highestIndexYesVote) {
+       		member.highestIndexYesVote = proposalIndex;
+   	}
 
-   		// set maximum of total shares encountered at a yes vote - used to bound dilution for yes voters
-   		if (totalShares > proposal.maxTotalSharesAtYesVote) {
-       	    proposal.maxTotalSharesAtYesVote = totalShares;
-   		}
+   	// set maximum of total shares encountered at a yes vote - used to bound dilution for yes voters
+   	if (totalShares > proposal.maxTotalSharesAtYesVote) {
+       		proposal.maxTotalSharesAtYesVote = totalShares;
+   	}
 
-   	    } else if (vote == Vote.No) {
-	 	    proposal.noVotes = proposal.noVotes.add(member.shares);
-   	    }
+   	} else if (vote == Vote.No) {
+		proposal.noVotes = proposal.noVotes.add(member.shares);
+   	}
 
-   	    emit SubmitVote(proposalIndex, msg.sender, memberAddress, uintVote);
+   	emit SubmitVote(proposalIndex, msg.sender, memberAddress, uintVote);
     }
 
     function processProposal(uint256 proposalIndex) public {
     	require(proposalIndex < ProposalQueue.length, "Moloch::processProposal - proposal does not exist");
-   	    Proposal storage proposal = ProposalQueue[proposalIndex];
+   	Proposal storage proposal = ProposalQueue[proposalIndex];
 
-   	    require(getCurrentPeriod() >= proposal.startingPeriod.add(votingPeriodLength).add(gracePeriodLength),"Moloch::processProposal - proposal is not ready to be processed");
-   	    require(proposal.processed == false, "Moloch::processProposal - proposal has already been processed");
-   	    require(proposalIndex == 0 || ProposalQueue[proposalIndex.sub(1)].processed, "Moloch::processProposal - previous proposal must be processed");
+   	require(getCurrentPeriod() >= proposal.startingPeriod.add(votingPeriodLength).add(gracePeriodLength),"Moloch::processProposal - proposal is not ready to be processed");
+   	require(proposal.processed == false, "Moloch::processProposal - proposal has already been processed");
+   	require(proposalIndex == 0 || ProposalQueue[proposalIndex.sub(1)].processed, "Moloch::processProposal - previous proposal must be processed");
 
-   	    proposal.processed = true;
-   	    totalSharesRequested = totalSharesRequested.sub(proposal.sharesRequested);
-   	    totalFundsRequested = totalFundsRequested.sub(proposal.fundsRequested);
+   	proposal.processed = true;
+   	totalSharesRequested = totalSharesRequested.sub(proposal.sharesRequested);
+   	totalFundsRequested = totalFundsRequested.sub(proposal.fundsRequested);
    	 
-   	    bool didPass = proposal.yesVotes > proposal.noVotes;
+   	bool didPass = proposal.yesVotes > proposal.noVotes;
 
-   	    // Make the proposal fail if the dilutionBound is exceeded
-   	    if (totalShares.mul(dilutionBound) < proposal.maxTotalSharesAtYesVote) {
+   	// Make the proposal fail if the dilutionBound is exceeded
+   	if (totalShares.mul(dilutionBound) < proposal.maxTotalSharesAtYesVote) {
 		didPass = false;
-   	    }
+   	}
 
-   	    // PROPOSAL PASSED
-   	    if (didPass && !proposal.aborted) {
+   	// PROPOSAL PASSED
+   	if (didPass && !proposal.aborted) {
 		proposal.didPass = true;
 
-   		// if the applicant is already a member, add to their existing shares
-   		if (members[proposal.applicant].exists) {
-       	    members[proposal.applicant].shares = members[proposal.applicant].shares.add(proposal.sharesRequested);
-            if (proposal.tributeToken == contributionToken) {
+   	// if the applicant is already a member, add to their existing shares
+   	if (members[proposal.applicant].exists) {
+       		members[proposal.applicant].shares = members[proposal.applicant].shares.add(proposal.sharesRequested);
+        if (proposal.tributeToken == contributionToken) {
        		members[proposal.applicant].tributeAmount = members[proposal.applicant].tributeAmount.add(proposal.tributeAmount);
         }
 		
-   		// the applicant is a new member, create a new record for them
-   		} else {
+   	// the applicant is a new member, create a new record for them
+   	} else {
        	// if the applicant address is already taken by a member's delegateKey, reset it to their member address
        	if (members[memberAddressByDelegateKey[proposal.applicant]].exists) {
-            address memberToOverride = memberAddressByDelegateKey[proposal.applicant];
+        	address memberToOverride = memberAddressByDelegateKey[proposal.applicant];
            	memberAddressByDelegateKey[memberToOverride] = memberToOverride;
            	members[memberToOverride].delegateKey = memberToOverride;
        	}
@@ -695,36 +695,36 @@ contract VentureMolochLAO { // vmLAO
         // use applicant address as delegateKey by default
         members[proposal.applicant] = Member(proposal.applicant, proposal.sharesRequested, true, 0, 0);
         if (proposal.tributeToken == contributionToken) {
-            members[proposal.applicant] = Member(proposal.applicant, proposal.sharesRequested, true, proposal.tributeAmount, 0);
+        	members[proposal.applicant] = Member(proposal.applicant, proposal.sharesRequested, true, proposal.tributeAmount, 0);
         }
-            memberAddressByDelegateKey[proposal.applicant] = proposal.applicant;
+            	memberAddressByDelegateKey[proposal.applicant] = proposal.applicant;
         }
-
-   		// mint new shares
-   		totalShares = totalShares.add(proposal.sharesRequested);
+	
+   	// mint new shares
+   	totalShares = totalShares.add(proposal.sharesRequested);
    		 
         // update total member contribution tally if tribute amount in contribution token
         if (proposal.tributeToken == contributionToken) {
    		totalContributed = totalContributed.add(proposal.tributeAmount);
         }
    		 
-   		// transfer token tribute to guild bank
-   		require(proposal.tributeToken.transfer(address(guildBank), proposal.tributeAmount),
-		"Moloch::processProposal - token transfer to guild bank failed");
+   	// transfer token tribute to guild bank
+   	require(proposal.tributeToken.transfer(address(guildBank), proposal.tributeAmount),
+	"Moloch::processProposal - token transfer to guild bank failed");
    		 
-   		// instruct guild bank to transfer requested funds to applicant address
-   		require(guildBank.withdrawFunds(proposal.applicant, proposal.fundsRequested),
+   	// instruct guild bank to transfer requested funds to applicant address
+   	require(guildBank.withdrawFunds(proposal.applicant, proposal.fundsRequested),
        	"Moloch::ragequit - withdrawal of tokens from guildBank failed");
   		 
-   	    // PROPOSAL FAILED OR ABORTED
-   	    } else {
+   	// PROPOSAL FAILED OR ABORTED
+   	} else {
    	        
-   		// return all tribute tokens to the applicant
-   		require(proposal.tributeToken.transfer(proposal.applicant, proposal.tributeAmount),
+   	// return all tribute tokens to the applicant
+   	require(proposal.tributeToken.transfer(proposal.applicant, proposal.tributeAmount),
        	"Moloch::processProposal - failing vote token transfer failed");
-   	    }
+   	}
    	
-   	    emit ProcessProposal(
+   	emit ProcessProposal(
 		    proposalIndex,
    		    proposal.proposer,
    		    proposal.applicant,
@@ -733,8 +733,7 @@ contract VentureMolochLAO { // vmLAO
    		    proposal.sharesRequested,
    		    proposal.fundsRequested,
    		    proposal.details,
-   		    didPass
-		);
+   		    didPass);
     }
     
     function ragequit(uint256 sharesToBurn) public onlyMember {
@@ -752,7 +751,7 @@ contract VentureMolochLAO { // vmLAO
 
         // instruct guildBank to transfer fair share of tokens to the ragequitter
         require(guildBank.withdraw(msg.sender, sharesToBurn, initialTotalShares),
-            "Moloch::ragequit - withdrawal of tokens from guildBank failed");
+        "Moloch::ragequit - withdrawal of tokens from guildBank failed");
 
         emit Ragequit(msg.sender, sharesToBurn);
     }
@@ -763,38 +762,38 @@ contract VentureMolochLAO { // vmLAO
     */
     function abortProposal(uint256 proposalIndex) public {
     	require(proposalIndex < ProposalQueue.length, "Moloch::abort - proposal does not exist");
-   	    Proposal storage proposal = ProposalQueue[proposalIndex];
+   	Proposal storage proposal = ProposalQueue[proposalIndex];
 
-   	    require(msg.sender == proposal.applicant, "Moloch::abort - msg.sender must be applicant");
-   	    require(getCurrentPeriod() < proposal.startingPeriod.add(abortWindow), "Moloch::abort - abort window must not have passed");
-   	    require(!proposal.aborted, "Moloch::abort - proposal must not have already been aborted");
+   	require(msg.sender == proposal.applicant, "Moloch::abort - msg.sender must be applicant");
+   	require(getCurrentPeriod() < proposal.startingPeriod.add(abortWindow), "Moloch::abort - abort window must not have passed");
+   	require(!proposal.aborted, "Moloch::abort - proposal must not have already been aborted");
 
-   	    uint256 tokensToAbort = proposal.tributeAmount;
-   	    proposal.tributeAmount = 0;
-   	    proposal.aborted = true;
+   	uint256 tokensToAbort = proposal.tributeAmount;
+   	proposal.tributeAmount = 0;
+   	proposal.aborted = true;
 
-   	    // return all tribute tokens to the applicant
-   	    require(proposal.tributeToken.transfer(proposal.applicant, tokensToAbort),
-		"Moloch::abort- failed to return tribute to applicant");
+   	// return all tribute tokens to the applicant
+   	require(proposal.tributeToken.transfer(proposal.applicant, tokensToAbort),
+	"Moloch::abort- failed to return tribute to applicant");
 	
-	    emit Abort(proposalIndex, msg.sender);
+	emit Abort(proposalIndex, msg.sender);
     }
 
     function updateDelegateKey(address newDelegateKey) public onlyMember {
     	require(newDelegateKey != address(0), "Moloch::updateDelegateKey - newDelegateKey cannot be 0");
 
-   	    // skip checks if member is setting the delegate key to their member address
-   	    if (newDelegateKey != msg.sender) {
+   	// skip checks if member is setting the delegate key to their member address
+   	if (newDelegateKey != msg.sender) {
 		require(!members[newDelegateKey].exists, "Moloch::updateDelegateKey - cant overwrite existing members");
    		require(!members[memberAddressByDelegateKey[newDelegateKey]].exists, "Moloch::updateDelegateKey - cant overwrite existing delegate keys");
-   	    }
+   	}
 
-   	    Member storage member = members[msg.sender];
+   	Member storage member = members[msg.sender];
 		memberAddressByDelegateKey[member.delegateKey] = address(0);
    	 	memberAddressByDelegateKey[newDelegateKey] = msg.sender;
    	 	member.delegateKey = newDelegateKey;
 
-	    emit UpdateDelegateKey(msg.sender, newDelegateKey);
+	emit UpdateDelegateKey(msg.sender, newDelegateKey);
     }
     
     // Extension to original Moloch Code: Summoner withdraws and administers tribute tokens (but not member contributions in guild bank)
@@ -815,22 +814,22 @@ contract VentureMolochLAO { // vmLAO
     }
 
     function getProposalQueueLength() public view returns (uint256) {
-   	    return ProposalQueue.length;
+   	return ProposalQueue.length;
     }
     
     // can only ragequit if the latest proposal you voted YES on has been processed
     function canRagequit(uint256 highestIndexYesVote) public view returns (bool) {
-   	    require(highestIndexYesVote < ProposalQueue.length, "Moloch::canRagequit - proposal does not exist");
-   	    return ProposalQueue[highestIndexYesVote].processed;
+   	require(highestIndexYesVote < ProposalQueue.length, "Moloch::canRagequit - proposal does not exist");
+   	return ProposalQueue[highestIndexYesVote].processed;
     }
 
     function hasVotingPeriodExpired(uint256 startingPeriod) public view returns (bool) {
-   	    return getCurrentPeriod() >= startingPeriod.add(votingPeriodLength);
+   	return getCurrentPeriod() >= startingPeriod.add(votingPeriodLength);
     }
 
     function getProposalVote(address memberAddress, uint256 proposalIndex) public view returns (Vote) {
-   	    require(members[memberAddress].exists, "Moloch::getProposalVote - member doesn't exist");
-   	    require(proposalIndex < ProposalQueue.length, "Moloch::getProposalVote - proposal doesn't exist");
-   	    return ProposalQueue[proposalIndex].votesByMember[memberAddress];
+   	require(members[memberAddress].exists, "Moloch::getProposalVote - member doesn't exist");
+   	require(proposalIndex < ProposalQueue.length, "Moloch::getProposalVote - proposal doesn't exist");
+   	return ProposalQueue[proposalIndex].votesByMember[memberAddress];
     }
 }
