@@ -344,8 +344,7 @@ contract GuildBank is Ownable {
     IERC20 private contributionToken; // contribution token contract reference
 
     event MemberWithdrawal(address indexed receiver, uint256 indexed amount);
-    event FundsWithdrawal(address indexed applicant, uint256 indexed fundsRequested);
-    event AssetWithdrawal(IERC20 indexed assetToken, address indexed receiver, uint256 indexed amount);
+    event FundsWithdrawal(address indexed applicant, uint256 indexed fundsRequested, IERC20 fundingToken);
     
     // contributionToken is used to fund ventures and distribute dividends, e.g., wETH or DAI
     constructor(address contributionTokenAddress) public {
@@ -361,15 +360,9 @@ contract GuildBank is Ownable {
     
     // pairs to VentureMoloch funding proposal mechanism.
     // Funds are withdrawn on processProposal
-    function withdrawFunds(address applicant, uint256 fundsRequested) public onlyOwner returns (bool) {
-    	emit FundsWithdrawal(applicant, fundsRequested);
-   	return contributionToken.transfer(applicant, fundsRequested);
-    }
-    
-    // onlySummoner in Moloch can withdraw and administer guild asset tokens
-    function adminWithdrawAsset(IERC20 assetToken, address receiver, uint256 amount) public onlyOwner returns(bool) {
-   	emit AssetWithdrawal(assetToken, receiver, amount);
-   	return IERC20(assetToken).transfer(receiver, amount);
+    function withdrawFunds(address applicant, uint256 fundsRequested, IERC20 fundingToken) public onlyOwner returns (bool) {
+    	emit FundsWithdrawal(applicant, fundsRequested, fundingToken);
+   	return fundingToken.transfer(applicant, fundsRequested);
     }
 }
 
@@ -389,7 +382,8 @@ contract VentureMolochLAO { // vmLAO
     address private summoner; // Moloch summoner address reference;
     
     IERC20 private tributeToken; // tribute token contract reference
-    IERC20 private contributionToken; // requested funds token contract reference
+    IERC20 private contributionToken; // base contribution token contract reference
+    IERC20 private fundingToken; // requested funds token contract reference
     
     GuildBank public guildBank; // guild bank contract reference
 
@@ -411,9 +405,8 @@ contract VentureMolochLAO { // vmLAO
     	address indexed applicant,
     	uint256 tributeAmount,
     	IERC20 tributeToken,
-    	uint256 sharesRequested,
     	uint256 fundsRequested,
-    	IERC20 contributionToken,
+	IERC20 fundingToken,
     	string details);
     event SubmitVote(
     	uint256 indexed proposalIndex,
@@ -426,8 +419,8 @@ contract VentureMolochLAO { // vmLAO
         address indexed applicant,
         uint256 tributeAmount,
         IERC20 tributeToken,
-        uint256 sharesRequested,
         uint256 fundsRequested,
+	IERC20 fundingToken,
         string details,
    	bool didPass);
     event Ragequit(address indexed memberAddress, uint256 sharesToBurn);
@@ -439,11 +432,7 @@ contract VentureMolochLAO { // vmLAO
     INTERNAL ACCOUNTING
     ******************/
     uint256 public totalShares = 0; // total shares across all members
-    uint256 public totalSharesRequested = 0; // total shares that have been requested in unprocessed proposals
     uint256 public totalFundsRequested = 0; // total shares that have been requested in unprocessed proposals
-    
-    // guild bank accounting in base contribution token
-    uint256 public totalContributed = 0; // total member contributions to guild bank
     
     enum Vote {
     	Null, // default value, counted as abstention
@@ -455,7 +444,6 @@ contract VentureMolochLAO { // vmLAO
     	address delegateKey; // the key responsible for submitting proposals and voting - defaults to member address unless updated
         uint256 shares; // the # of shares assigned to this member
    	bool exists; // always true once a member has been created
-   	uint256 tributeAmount; // amount contributed by member to guild bank 
    	uint256 highestIndexYesVote; // highest proposal index # on which the member voted YES
     }
     
@@ -464,8 +452,8 @@ contract VentureMolochLAO { // vmLAO
    	address applicant; // the applicant who wishes to become a member - this key will be used for withdrawals
    	uint256 tributeAmount; // amount of tokens offered as tribute
    	IERC20 tributeToken; // the tribute token reference for subscription or alternative contribution
-   	uint256 sharesRequested; // the # of shares the applicant is requesting
    	uint256 fundsRequested; // the funds requested for applicant
+	IERC20 fundingToken; // the type of ERC-20 token that funds are requested in for applicant
    	string details; // proposal details - could be IPFS hash, plaintext, or JSON
    	uint256 startingPeriod; // the period in which voting can start for this proposal
    	uint256 yesVotes; // the total number of YES votes for this proposal
@@ -491,12 +479,6 @@ contract VentureMolochLAO { // vmLAO
 
     modifier onlyDelegate {
     	require(members[memberAddressByDelegateKey[msg.sender]].shares > 0, "Moloch::onlyDelegate - not a delegate");
-   	_;
-    }
-    
-    //onlySummoner is add-on to original Moloch Code. Allows summoner to act as administrator for guild bank.  
-    modifier onlySummoner {
-    	require(msg.sender == summoner);
    	_;
     }
     
@@ -537,13 +519,44 @@ contract VentureMolochLAO { // vmLAO
 
    	summoningTime = now;
 
-   	members[summoner] = Member(summoner, 1, true, 0, 0);
+   	members[summoner] = Member(summoner, 1, true, 0);
    	memberAddressByDelegateKey[summoner] = summoner;
    	totalShares = 1;
 
    	emit SummonComplete(summoner, 1);
     }
+    
+    /*****************
+    MEMBERSHIP FUNCTIONS
+    *****************/
+    function joinMembership(uint256 contribution) public {
+	require(contributionToken.transferFrom(msg.sender, address(guildBank), contribution), "Moloch::joinMembership - contribution token transfer failed");
 
+        uint256 memberVotes = contribution.div(10**18);
+	
+    	// if the applicant is already a member, add to their existing shares
+   	if (members[msg.sender].exists) {
+       	members[msg.sender].shares = members[msg.sender].shares.add(memberVotes);
+        	
+   	// if the msg.ender is a new member, create a new record for them
+   	} else {
+       	// if the msg.sender address is already taken by a member's delegateKey, reset it to their member address
+        if (members[memberAddressByDelegateKey[msg.sender]].exists) {
+        address memberToOverride = memberAddressByDelegateKey[msg.sender];
+        memberAddressByDelegateKey[memberToOverride] = memberToOverride;
+        members[memberToOverride].delegateKey = memberToOverride;
+    	}
+
+        // use msg.sender address as delegateKey by default
+        members[msg.sender] = Member(msg.sender, memberVotes, true, 0);
+ 
+        memberAddressByDelegateKey[msg.sender] = msg.sender;
+        }
+	
+   	// mint new shares
+   	totalShares = totalShares.add(memberVotes);
+    }
+    
     /*****************
     PROPOSAL FUNCTIONS
     *****************/
@@ -551,22 +564,16 @@ contract VentureMolochLAO { // vmLAO
     	address applicant,
    	uint256 tributeAmount,
    	IERC20 _tributeToken,
-   	uint256 sharesRequested,
    	uint256 fundsRequested,
+	IERC20 _fundingToken,
    	string memory details) public onlyDelegate {
-
-   	// Make sure we won't run into overflows when doing calculations with shares.
-   	// Note that totalShares + totalSharesRequested + sharesRequested is an upper bound
-   	// on the number of shares that can exist until this proposal has been processed.
-   	require(totalShares.add(totalSharesRequested).add(sharesRequested) <= MAX_NUMBER_OF_SHARES, "Moloch::submitProposal - too many shares requested");
    	 
-   	totalSharesRequested = totalSharesRequested.add(sharesRequested);
    	totalFundsRequested = totalFundsRequested.add(fundsRequested);
 
    	address memberAddress = memberAddressByDelegateKey[msg.sender];
    	 
    	tributeToken = IERC20(_tributeToken);
-   	contributionToken = IERC20(_tributeToken);
+   	fundingToken = IERC20(_fundingToken);
    	 
     	// collect token tribute from applicant and store it in the Moloch until the proposal is processed
    	require(tributeToken.transferFrom(applicant, address(this), tributeAmount), "Moloch::submitProposal - tribute token transfer failed");
@@ -583,8 +590,8 @@ contract VentureMolochLAO { // vmLAO
         	applicant: applicant,
         	tributeAmount: tributeAmount,
         	tributeToken: tributeToken,
-        	sharesRequested: sharesRequested,
         	fundsRequested: fundsRequested,
+		fundingToken: fundingToken,
         	details: details,
         	startingPeriod: startingPeriod,
         	yesVotes: 0,
@@ -607,9 +614,8 @@ contract VentureMolochLAO { // vmLAO
    	 	 applicant,
    	 	 tributeAmount,
    	 	 tributeToken,
-   	 	 sharesRequested,
    	 	 fundsRequested,
-   	 	 contributionToken,
+		 fundingToken,
    	 	 details);
     }
     
@@ -662,7 +668,6 @@ contract VentureMolochLAO { // vmLAO
    	require(proposalIndex == 0 || ProposalQueue[proposalIndex.sub(1)].processed, "Moloch::processProposal - previous proposal must be processed");
 
    	proposal.processed = true;
-   	totalSharesRequested = totalSharesRequested.sub(proposal.sharesRequested);
    	totalFundsRequested = totalFundsRequested.sub(proposal.fundsRequested);
    	 
    	bool didPass = proposal.yesVotes > proposal.noVotes;
@@ -675,45 +680,13 @@ contract VentureMolochLAO { // vmLAO
    	// PROPOSAL PASSED
    	if (didPass && !proposal.aborted) {
 		proposal.didPass = true;
-
-   	// if the applicant is already a member, add to their existing shares
-   	if (members[proposal.applicant].exists) {
-       		members[proposal.applicant].shares = members[proposal.applicant].shares.add(proposal.sharesRequested);
-        if (proposal.tributeToken == contributionToken) {
-       		members[proposal.applicant].tributeAmount = members[proposal.applicant].tributeAmount.add(proposal.tributeAmount);
-        }
-		
-   	// the applicant is a new member, create a new record for them
-   	} else {
-       	// if the applicant address is already taken by a member's delegateKey, reset it to their member address
-       	if (members[memberAddressByDelegateKey[proposal.applicant]].exists) {
-        	address memberToOverride = memberAddressByDelegateKey[proposal.applicant];
-           	memberAddressByDelegateKey[memberToOverride] = memberToOverride;
-           	members[memberToOverride].delegateKey = memberToOverride;
-       	}
-
-        // use applicant address as delegateKey by default
-        members[proposal.applicant] = Member(proposal.applicant, proposal.sharesRequested, true, 0, 0);
-        if (proposal.tributeToken == contributionToken) {
-        	members[proposal.applicant] = Member(proposal.applicant, proposal.sharesRequested, true, proposal.tributeAmount, 0);
-        }
-            	memberAddressByDelegateKey[proposal.applicant] = proposal.applicant;
-        }
-	
-   	// mint new shares
-   	totalShares = totalShares.add(proposal.sharesRequested);
-   		 
-        // update total member contribution tally if tribute amount in contribution token
-        if (proposal.tributeToken == contributionToken) {
-   		totalContributed = totalContributed.add(proposal.tributeAmount);
-        }
-   		 
+			 
    	// transfer token tribute to guild bank
    	require(proposal.tributeToken.transfer(address(guildBank), proposal.tributeAmount),
 	"Moloch::processProposal - token transfer to guild bank failed");
    		 
    	// instruct guild bank to transfer requested funds to applicant address
-   	require(guildBank.withdrawFunds(proposal.applicant, proposal.fundsRequested),
+   	require(guildBank.withdrawFunds(proposal.applicant, proposal.fundsRequested, proposal.fundingToken),
        	"Moloch::ragequit - withdrawal of tokens from guildBank failed");
   		 
    	// PROPOSAL FAILED OR ABORTED
@@ -730,8 +703,8 @@ contract VentureMolochLAO { // vmLAO
    		    proposal.applicant,
    		    proposal.tributeAmount,
    		    proposal.tributeToken,
-   		    proposal.sharesRequested,
    		    proposal.fundsRequested,
+		    proposal.fundingToken,
    		    proposal.details,
    		    didPass);
     }
@@ -794,12 +767,6 @@ contract VentureMolochLAO { // vmLAO
    	 	member.delegateKey = newDelegateKey;
 
 	emit UpdateDelegateKey(msg.sender, newDelegateKey);
-    }
-    
-    // Extension to original Moloch Code: Summoner withdraws and administers tribute tokens (but not member contributions in guild bank)
-    function adminWithdrawAsset(IERC20 assetToken, address receiver, uint256 amount) onlySummoner public returns (bool) {
-    	require(assetToken != contributionToken);
-        return guildBank.adminWithdrawAsset(assetToken, receiver, amount);
     }
  
     /***************
