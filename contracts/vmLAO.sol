@@ -751,6 +751,10 @@ contract VentureMolochLAO { // vmLAO
     function max(uint256 x, uint256 y) internal pure returns (uint256) {
     	return x >= y ? x : y;
     }
+    
+    function getTotalBank() public view returns (uint256) {
+        return contributionToken.balanceOf(address(guildBank)).div(decimalFactor);
+    }
 
     function getCurrentPeriod() public view returns (uint256) {
     	return now.sub(summoningTime).div(periodDuration);
