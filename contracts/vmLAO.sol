@@ -2,9 +2,9 @@ pragma solidity 0.5.3;
 
 // WIP - please make comments through PRs!
 
-// Purpose: vmLAO is designed to streamline the funding of Ethereum ventures with legal security and minimal administration.
+// Purpose: vmLAO is designed to streamline the funding of Ethereum ventures.
 
-// Code is currently in testing // please review carefully before deploying for your own purposes!
+// Code is currently in beta testing // please review carefully before deploying for your own purposes!
 
 /**
  * @dev Wrappers over Solidity's arithmetic operations with added overflow
@@ -342,8 +342,6 @@ contract GuildBank is Ownable {
     using SafeMath for uint256;
 
     IERC20 private contributionToken; // contribution token contract reference
-    
-    uint256 private decimalFactor = 10**18; // reference for wei unit conversions to more legible token amounts
 
     event MemberWithdrawal(address indexed receiver, uint256 indexed amount);
     event FundsWithdrawal(address indexed applicant, uint256 indexed fundsRequested, IERC20 fundingToken);
@@ -378,8 +376,8 @@ contract VentureMolochLAO { // vmLAO
     uint256 public votingPeriodLength; // default = 35 periods (7 days)
     uint256 public gracePeriodLength; // default = 35 periods (7 days)
     uint256 public abortWindow; // default = 5 periods (1 day)
-    uint256 public proposalDeposit; // default = 10 ETH (~$1,000 worth of ETH at contract deployment)
-    uint256 public processingReward; // default = 0.1 - amount of ETH to give to whoever processes a proposal
+    uint256 public proposalDeposit; // default = 1 ETH (~$200 worth of ETH at contract deployment)
+    uint256 private processingReward; // default = 0.01 - amount of ETH to give to whoever processes a proposal
     uint256 public summoningTime; // needed to determine the current period
     
     address private summoner; // Moloch summoner address reference;
@@ -435,8 +433,8 @@ contract VentureMolochLAO { // vmLAO
     ******************/
     uint256 public minimumContribution; // minimum amount in contributionToken required to join membership
     uint256 public voteBlock; // amount of shares sold for a minimumContribution
-    uint256 public totalShares = 0; // total shares across all members
-    uint256 public totalFundsRequested = 0; // total shares that have been requested in unprocessed proposals
+    uint256 public totalShares; // total shares across all members
+    uint256 public totalFundsRequested; // total shares that have been requested in unprocessed proposals
     
     uint256 private decimalFactor = 10**18; // reference for wei unit conversions to more legible token amounts 
     
@@ -523,13 +521,12 @@ contract VentureMolochLAO { // vmLAO
    	gracePeriodLength = _gracePeriodLength;
    	abortWindow = _abortWindow;
 	proposalDeposit = _proposalDeposit;
-	processingReward = proposalDeposit.div(100);
+	processingReward = proposalDeposit.mul(decimalFactor).div(100);
 
    	summoningTime = now;
 
-   	members[summoner] = Member(summoner, 1, true, 0);
+   	members[summoner] = Member(summoner, 0, true, 0);
    	memberAddressByDelegateKey[summoner] = summoner;
-   	totalShares = 1;
 
    	emit SummonComplete(summoner, 1);
     }
@@ -649,6 +646,11 @@ contract VentureMolochLAO { // vmLAO
    	// count vote
    	if (vote == Vote.Yes) {
 		proposal.yesVotes = proposal.yesVotes.add(member.shares);
+	
+	 // set highest index (latest) yes vote - must be processed for member to ragequit
+         if (proposalIndex > member.highestIndexYesVote) {
+                member.highestIndexYesVote = proposalIndex;
+        }
 
    	} else if (vote == Vote.No) {
 		proposal.noVotes = proposal.noVotes.add(member.shares);
@@ -691,11 +693,11 @@ contract VentureMolochLAO { // vmLAO
    	}
 	
 	// send msg.sender the processingReward
-        require(contributionToken.transfer(msg.sender, processingReward.mul(decimalFactor)),
+        require(contributionToken.transfer(msg.sender, processingReward),
         	"Moloch::processProposal - failed to send processing reward to msg.sender");
 
         // return deposit to proposer (subtract processing reward)
-        require(contributionToken.transfer(proposal.proposer, proposalDeposit.sub(processingReward).mul(decimalFactor)),
+        require(contributionToken.transfer(proposal.proposer, proposalDeposit.mul(decimalFactor).sub(processingReward)),
         	"Moloch::processProposal - failed to return proposal deposit to proposer");
    	
    	emit ProcessProposal(
