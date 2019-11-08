@@ -528,8 +528,24 @@ contract VentureMolochLAO { // vmLAO
     function joinMembership(uint256 contribution) public {
     	require(contributionToken.transferFrom(msg.sender, address(guildBank), contribution.mul(decimalFactor)), "Moloch::joinMembership - contribution token transfer failed");
 	
-    	members[msg.sender] = Member(msg.sender, contribution, true);
-   	memberAddressByDelegateKey[msg.sender] = msg.sender;
+	// if the contributor is already a member, add to their existing shares
+        if (members[msg.sender].exists) {
+        members[msg.sender].shares = members[msg.sender].shares.add(contribution);
+	}
+	
+	// the applicant is a new member, create a new record for them
+        else {
+        // if the contributor address is already taken by a member's delegateKey, reset it to their member address
+        if (members[memberAddressByDelegateKey[msg.sender]].exists) {
+        address memberToOverride = memberAddressByDelegateKey[msg.sender];
+        memberAddressByDelegateKey[memberToOverride] = memberToOverride;
+        members[memberToOverride].delegateKey = memberToOverride;
+	}
+	
+	// use contributor address as delegateKey by default
+        members[msg.sender] = Member(msg.sender, contribution, true);
+        memberAddressByDelegateKey[msg.sender] = msg.sender;
+	}
 	
    	totalShares = totalShares.add(contribution);
     }
