@@ -526,7 +526,8 @@ contract VentureMolochLAO { // vmLAO
     MEMBERSHIP FUNCTIONS
     *****************/
     function joinMembership(uint256 contribution) public {
-    	require(contributionToken.transferFrom(msg.sender, address(guildBank), contribution.mul(decimalFactor)), "Moloch::joinMembership - contribution token transfer failed");
+    	require(totalShares.add(contribution) <= MAX_NUMBER_OF_SHARES, "Moloch::joinMembership - contribution exceeds share limit");
+	require(contributionToken.transferFrom(msg.sender, address(guildBank), contribution.mul(decimalFactor)), "Moloch::joinMembership - contribution token transfer failed");
 	
 	// if the contributor is already a member, add to their existing shares
         if (members[msg.sender].exists) {
