@@ -15,17 +15,24 @@ import "https://github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/r
 
     OPEN TODO's: 
     - ADD multi-sig for admins
-    -switch from "Signers" to "Whitelist" from Openzeppelin - signers is just for ease of developemenmt
+        https://github.com/gnosis/MultiSigWallet/blob/master/contracts/MultiSigWallet.sol?
     
+    -switch from "Signers" to "Whitelist" from Openzeppelin - signers is just for ease of developemenmt: DONE
+  
+    - make functions "Pauseable"??? 
+   
     - allow for proxing of only a percentage of votes in 'updateDelegateKey' - would need to update submitVote as well. 
+    
     -upon removal of a member, The LAO currently lets that member get their fairshare back of non-deployed funds, but..
     ...do we allow them to take out any perceived gains in equity? Or, just make the member leave any of those potential gains on the table. 
-    ...maybe solution is to make them saleable/transferrable to other LAO members? 
+    ...maybe solution is to make them saleable/transferrable to other LAO members?  : LEAVE GAINS ON TABLE 
     
-  -Break the Venture Moloch Contract into smaller components/contracts
+    -Break the Venture Moloch Contract into smaller components/contracts
+    
     - "deposit" requires pre-approved tokens in order to transfer. 
+    
     - consider making totalAvalilable, based on guildBank.balance instead of totalContributed
-    -move from SignerRole, to Whitelisted admins
+
     -payable functions 
 
 working on possiblity of making 'shares' standard erc-20s
