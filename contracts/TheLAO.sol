@@ -8,7 +8,8 @@ import "https://github.com/OpenZeppelin/openzeppelin-solidity/contracts/token/ER
 import "https://github.com/OpenZeppelin/openzeppelin-solidity/contracts/GSN/Context.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/Roles.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/roles/SignerRole.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/roles/WhitelistAdminRole.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/roles/WhitelistedRole.sol";
 /*
     This contract requires the above OpenZeppelin imports. 
 
@@ -61,7 +62,7 @@ contract GuildBank is Ownable {
 }
 
 
-contract VentureMoloch is Ownable, SignerRole {
+contract VentureMoloch is Ownable,WhitelistAdminRole, WhitelistedRole {
     using SafeMath for uint256;
 
     /***************
@@ -406,7 +407,7 @@ contract VentureMoloch is Ownable, SignerRole {
         documents in order, but has passed for funding.
         This avoids having to delay processing proposals. 
     */
-    function fundApprovedProposal(uint index) public onlySigner
+    function fundApprovedProposal(uint index) public onlyWhitelisted
      {
         Proposal storage proposal = ProposalQueue[index];
         //proposal must have passed
@@ -520,13 +521,13 @@ contract VentureMoloch is Ownable, SignerRole {
     }
 
     // Extension to original Moloch Code: Summoner withdraws and administers tribute tokens (but not member contributions or dividends)
-    function adminWithdrawAsset(IERC20 assetToken, address receiver, uint256 amount) onlySigner public returns (bool)  {
+    function adminWithdrawAsset(IERC20 assetToken, address receiver, uint256 amount) onlyWhitelisted public returns (bool)  {
         require(assetToken != contributionToken); 
         return guildBank.adminWithdrawAsset(assetToken, receiver, amount);
     }
 
     //@dev function to add a member without going through submit proposal process
-    function  addMember (address _newMemberAddress, uint256 _tributeAmount) onlySigner public returns(bool) {       
+    function  addMember (address _newMemberAddress, uint256 _tributeAmount) onlyWhitelisted public returns(bool) {       
            require(members[_newMemberAddress].exists  == false, "Moloch::member already exists");
            require(_newMemberAddress != address(0), "Moloch::addMember - applicant cannot be 0");
             //require new member address to not exist    
@@ -566,7 +567,7 @@ contract VentureMoloch is Ownable, SignerRole {
     }
     
     // @dev forces a current member out
-    function  removeMember (address currentMember) onlySigner public returns(bool)  {
+    function  removeMember (address currentMember) onlyWhitelisted public returns(bool)  {
         Member storage member = members[currentMember];
        
         //? change to .exits == true ?
@@ -612,7 +613,7 @@ contract VentureMoloch is Ownable, SignerRole {
        * Number of members = total amount authorized as dividend overall
 
     */
-    function declareDividend (uint256 amountPerShare)  onlySigner public  {
+    function declareDividend (uint256 amountPerShare)  onlyWhitelisted public  {
    
          uint256 totalAvailable = getTotalAvailable();
         //total of all dividends can not exceed total contributions - withdrawals
@@ -695,6 +696,7 @@ contract VentureMoloch is Ownable, SignerRole {
         ProposalQueue[index].tributeToken, ProposalQueue[index].didPass);
     }
   
+
     function getProposalQueueLength() public view returns (uint256) {
         return ProposalQueue.length;
     }
