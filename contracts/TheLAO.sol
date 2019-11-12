@@ -13,6 +13,9 @@ import "https://github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/r
     This contract requires the above OpenZeppelin imports. 
 
     OPEN TODO's: 
+    - ADD multi-sig for admins
+    -switch from "Signers" to "Whitelist" from Openzeppelin - signers is just for ease of developemenmt
+    
     - allow for proxing of only a percentage of votes in 'updateDelegateKey' - would need to update submitVote as well. 
     -upon removal of a member, The LAO currently lets that member get their fairshare back of non-deployed funds, but..
     ...do we allow them to take out any perceived gains in equity? Or, just make the member leave any of those potential gains on the table. 
